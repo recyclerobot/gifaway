@@ -27,27 +27,29 @@ const DetermineCaptureMode = count => {
 
 const randomEmoji = i => ["🎩", "✨", "🔮", "🎉"][i];
 
-const Capture = ({
-  webcamRef,
-  onNewImage,
-  onFinished = () => {},
-  onCountUpdate = () => {}
-}) => {
+const Capture = ({ onFinished = () => {} }) => {
+  const webcamRef = useRef(null);
   const [count, setCount] = useState(0);
+  const [captured, setCaptured] = useState([]);
+  console.log("count", count);
+
+  const handleNewImage = useCallback(
+    imgData => setCaptured([...captured, imgData]),
+    [captured, setCaptured]
+  );
 
   useInterval(() => {
     setCount(count + 1);
     // only get new image when countdown has past and number of images is not met yet
     if (DetermineCaptureMode(count) === "capture") {
-      onNewImage(webcamRef.current.getScreenshot());
+      handleNewImage(webcamRef.current.getScreenshot());
     }
-
-    // notify anyone who is listening
-    onCountUpdate(count);
 
     // check if we're done already
     if (count === TOTAL_COUNTDOWN_SEC + TOTAL_NR_IMAGES + 1) {
-      onFinished(count);
+      onFinished(captured);
+      // reset
+      setCaptured([]);
     }
   }, TIMER_INTERVAL_MS);
 
@@ -74,16 +76,28 @@ const Capture = ({
   }
 
   return (
-    <span
-      style={{
-        border: "5px dashed black",
-        fontSize: "30px",
-        fontWeight: "700",
-        padding: "6px 12px"
-      }}
-    >
-      {content}
-    </span>
+    <>
+      <div style={{ padding: "36px" }}>
+        <Webcam
+          audio={false}
+          ref={webcamRef}
+          screenshotFormat="image/jpeg"
+          width={WEBCAM_OPTIONS.width}
+          height={WEBCAM_OPTIONS.height}
+          videoConstraints={WEBCAM_OPTIONS}
+        />
+      </div>
+      <span
+        style={{
+          border: "5px dashed black",
+          fontSize: "30px",
+          fontWeight: "700",
+          padding: "6px 12px"
+        }}
+      >
+        {content}
+      </span>
+    </>
   );
 };
 
@@ -124,31 +138,22 @@ const Gif = ({ imgArray = [] }) => {
 };
 
 export const WebcamCapture = () => {
-  const webcamRef = useRef(null);
   const [store, setStore] = useStateWithLocalStorage("gifawayStore", []);
-  const [captured, setCaptured] = useState([]);
   const [captureMode, setCaptureMode] = useState(false);
 
-  const handleNewImage = useCallback(
-    imgData => setCaptured([...captured, imgData]),
-    [captured, setCaptured]
+  const handleFinished = useCallback(
+    captured => {
+      setCaptureMode(false);
+      setStore([...store, captured]);
+    },
+    [setStore, store]
   );
-
-  const handleFinished = useCallback(() => {
-    setStore([...store, captured]);
-    setCaptured([]);
-    setCaptureMode(false);
-  }, [captured, setStore, store]);
 
   return (
     <>
       <div style={{ padding: "36px" }}>
         {captureMode ? (
-          <Capture
-            webcamRef={webcamRef}
-            onNewImage={handleNewImage}
-            onFinished={handleFinished}
-          />
+          <Capture onFinished={handleFinished} />
         ) : (
           <button
             onClick={() => setCaptureMode(true)}
@@ -164,16 +169,6 @@ export const WebcamCapture = () => {
             Start! <span role="img">📸</span>
           </button>
         )}
-      </div>
-      <div style={{ padding: "36px" }}>
-        <Webcam
-          audio={false}
-          ref={webcamRef}
-          screenshotFormat="image/jpeg"
-          width={WEBCAM_OPTIONS.width}
-          height={WEBCAM_OPTIONS.height}
-          videoConstraints={WEBCAM_OPTIONS}
-        />
       </div>
       {store.reverse().map((imgArr, index) => (
         <Gif imgArray={imgArr} key={`gif_${index}`} />
