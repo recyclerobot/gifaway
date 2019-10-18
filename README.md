@@ -1,6 +1,8 @@
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+# Gifaway
 
-## Available Scripts
+Make a gif using your webcam and see gifs of others ✨
+
+## Developing
 
 In the project directory, you can run:
 
